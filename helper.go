@@ -10,19 +10,9 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-func generateExportPath(filename string) string {
-	pathExport := "tmp/{time}_{file}.xlsx"
-	pathExport = strings.ReplaceAll(pathExport, "{time}", time.Now().Format("2006_01_02_15_04_05"))
-	pathExport = strings.ReplaceAll(pathExport, "{file}", filename)
-	return pathExport
-}
-
 func validateConfig(cfg *config.ExportConfig) {
 	if cfg == nil {
 		cfg = &config.ExportConfig{}
-	}
-	if cfg.FileName == "" {
-		cfg.FileName = config.DEFAULT_FILE_NAME
 	}
 	if cfg.Title == "" {
 		cfg.Title = config.DEFAULT_TITLE

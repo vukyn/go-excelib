@@ -2,12 +2,9 @@ package config
 
 import (
 	"fmt"
-
-	"github.com/xuri/excelize/v2"
 )
 
 const (
-	DEFAULT_FILE_NAME  = "export"
 	DEFAULT_TITLE      = "Export Example Excel Title"
 	DEFAULT_SHEET_NAME = "Sheet1"
 	DEFAULT_TABLE_NAME = "Table1"
@@ -17,13 +14,7 @@ const (
 	MAX_ROW            = 1000000
 )
 
-type Excelib struct {
-	File   *excelize.File
-	Stream *excelize.StreamWriter
-}
-
 type ExportConfig struct {
-	FileName  string
 	Title     string
 	SheetName string
 	TableName string
