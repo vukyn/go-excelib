@@ -38,11 +38,11 @@ func validateConfig(cfg *config.ExportConfig) {
 	}
 }
 
-func setMetadata(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableConfig) error {
+func setMetadata(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableConfig) error {
 	if err := f.SetCellValue(cfg.SheetName, "A1", cfg.Title); err != nil {
 		return err
 	}
-	if err := f.MergeCell(cfg.SheetName, "A1", fmt.Sprintf("%v1", tbConfig.EndColumnKey)); err != nil {
+	if err := f.MergeCell(cfg.SheetName, "A1", fmt.Sprintf("%v1", tbCfg.EndColumnKey)); err != nil {
 		return err
 	}
 	if err := f.SetCellValue(cfg.SheetName, "G4", fmt.Sprintf("Thời gian: %s", time.Now().Format("02/01/2006 15:04:05"))); err != nil {
@@ -54,18 +54,18 @@ func setMetadata(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.Ta
 	return nil
 }
 
-func setHeader(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableConfig, values reflect.Value) error {
+func setHeader(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableConfig, values reflect.Value) error {
 	headers := []string{}
 	if cfg.HasIndex {
 		headers = append(headers, cfg.IndexName)
-		tbConfig.NumFields++
-		tbConfig.ResetTableConfig()
+		tbCfg.NumFields++
+		tbCfg.ResetTableConfig()
 	}
 	for i := 0; i < values.Index(0).NumField(); i++ {
 		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
 		if fieldName == "-" {
-			tbConfig.NumFields--
-			tbConfig.ResetTableConfig()
+			tbCfg.NumFields--
+			tbCfg.ResetTableConfig()
 			continue
 		}
 		if fieldName == "" {
@@ -73,13 +73,27 @@ func setHeader(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.Tabl
 		}
 		headers = append(headers, fieldName)
 	}
-	if err := f.SetSheetRow(cfg.SheetName, tbConfig.FirstCell, &headers); err != nil {
+	if err := f.SetSheetRow(cfg.SheetName, tbCfg.FirstCell, &headers); err != nil {
 		return err
 	}
 	return nil
 }
 
-func setBody(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableConfig, values reflect.Value) error {
+func setDescription(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableConfig, values reflect.Value) error {
+	descriptions := []string{}
+	tbCfg.NumRows++
+	tbCfg.ResetTableConfig()
+	for i := 0; i < values.Index(0).NumField(); i++ {
+		desc := values.Index(0).Type().Field(i).Tag.Get("description")
+		descriptions = append(descriptions, desc)
+	}
+	if err := f.SetSheetRow(cfg.SheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.StartRowIndex+1), &descriptions); err != nil {
+		return err
+	}
+	return nil
+}
+
+func setBody(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableConfig, values reflect.Value) error {
 	for i := 0; i < values.Len(); i++ {
 		row := []interface{}{}
 		if cfg.HasIndex {
@@ -91,17 +105,17 @@ func setBody(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableC
 			}
 			row = append(row, values.Index(i).Field(j).Interface())
 		}
-		if err := f.SetSheetRow(cfg.SheetName, fmt.Sprintf("%v%v", tbConfig.StartColumnKey, i+7), &row); err != nil {
+		if err := f.SetSheetRow(cfg.SheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, i+7), &row); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func setFooter(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableConfig, values reflect.Value) error {
-	lastRowIndex := tbConfig.EndRowIndex + 1
+func setFooter(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableConfig, values reflect.Value) error {
+	lastRowIndex := tbCfg.EndRowIndex + 1
 	if cfg.HasIndex {
-		if err := f.SetCellValue(cfg.SheetName, fmt.Sprintf("%v%v", tbConfig.StartColumnKey, lastRowIndex), "Total"); err != nil {
+		if err := f.SetCellValue(cfg.SheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, lastRowIndex), "Total"); err != nil {
 			return err
 		}
 	}
@@ -140,27 +154,23 @@ func setFooter(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.Tabl
 	return nil
 }
 
-func setStyle(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableConfig) error {
-	styleBoldCenter, err := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{
-			Bold: true,
-		},
-		Alignment: &excelize.Alignment{
-			Horizontal: "center",
-			Vertical:   "center",
-		},
-	})
-	if err != nil {
+func setStyle(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableConfig) error {
+	boldCenter := config.BoldCenter(f)
+	if err := f.SetCellStyle(cfg.SheetName, tbCfg.FirstCell, tbCfg.LastCellCol, boldCenter); err != nil {
 		return err
 	}
-	if err := f.SetCellStyle(cfg.SheetName, tbConfig.FirstCell, tbConfig.LastCellCol, styleBoldCenter); err != nil {
-		return err
+	if cfg.HasFooter {
+		lastCell := fmt.Sprintf("%v%v", tbCfg.EndColumnKey, tbCfg.EndRowIndex+1)
+		lastCellRow := fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.EndRowIndex+1)
+		if err := f.SetCellStyle(cfg.SheetName, lastCellRow, lastCell, boldCenter); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func setTable(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableConfig) error {
-	refRange := fmt.Sprintf("%v:%v", tbConfig.FirstCell, tbConfig.LastCell)
+func setTable(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableConfig) error {
+	refRange := fmt.Sprintf("%v:%v", tbCfg.FirstCell, tbCfg.LastCell)
 	if err := f.AddTable(cfg.SheetName, &excelize.Table{
 		Range:           refRange,
 		Name:            cfg.TableName,

@@ -48,12 +48,20 @@ func ExportExcel(objs interface{}, cfg *config.ExportConfig) error {
 		return err
 	}
 
+	if cfg.HasDescription {
+		if err := setDescription(f, cfg, tbConfig, values); err != nil {
+			return err
+		}
+	}
+
 	if err := setBody(f, cfg, tbConfig, values); err != nil {
 		return err
 	}
 
-	if err := setFooter(f, cfg, tbConfig, values); err != nil {
-		return err
+	if cfg.HasFooter {
+		if err := setFooter(f, cfg, tbConfig, values); err != nil {
+			return err
+		}
 	}
 
 	if err := setStyle(f, cfg, tbConfig); err != nil {
