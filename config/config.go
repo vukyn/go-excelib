@@ -13,7 +13,7 @@ const (
 	DEFAULT_TABLE_NAME = "Table1"
 	DEFAULT_INDEX_NAME = "No."
 	EXCEL_COLUMN       = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	OFFSET_COLUMN      = 6
+	OFFSET             = 6
 	MAX_ROW            = 1000000
 )
 
@@ -63,8 +63,8 @@ type TableConfig struct {
 func (t *TableConfig) ResetTableConfig() {
 	t.StartColumnKey = string(EXCEL_COLUMN[0])
 	t.EndColumnKey = string(EXCEL_COLUMN[t.NumFields])
-	t.StartRowIndex = OFFSET_COLUMN
-	t.EndRowIndex = t.NumRows + OFFSET_COLUMN
+	t.StartRowIndex = OFFSET
+	t.EndRowIndex = t.NumRows + t.StartRowIndex
 	t.FirstCell = fmt.Sprintf("%v%v", t.StartColumnKey, t.StartRowIndex)
 	t.LastCell = fmt.Sprintf("%v%v", t.EndColumnKey, t.EndRowIndex)
 	t.LastCellRow = fmt.Sprintf("%v%v", t.StartColumnKey, t.EndRowIndex)

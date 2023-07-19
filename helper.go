@@ -45,10 +45,10 @@ func setMetadata(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.Table
 	if err := f.MergeCell(cfg.SheetName, "A1", fmt.Sprintf("%v1", tbCfg.EndColumnKey)); err != nil {
 		return err
 	}
-	if err := f.SetCellValue(cfg.SheetName, "G4", fmt.Sprintf("Thời gian: %s", time.Now().Format("02/01/2006 15:04:05"))); err != nil {
+	if err := f.SetCellValue(cfg.SheetName, "A2", fmt.Sprintf("Thời gian: %s", time.Now().Format("02/01/2006 15:04:05"))); err != nil {
 		return err
 	}
-	if err := f.MergeCell(cfg.SheetName, "G4", "J4"); err != nil {
+	if err := f.MergeCell(cfg.SheetName, "A2", "D2"); err != nil {
 		return err
 	}
 	return nil
@@ -83,8 +83,16 @@ func setDescription(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.Ta
 	descriptions := []string{}
 	tbCfg.NumRows++
 	tbCfg.ResetTableConfig()
+	if cfg.HasIndex {
+		descriptions = append(descriptions, "")
+	}
+
 	for i := 0; i < values.Index(0).NumField(); i++ {
+		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
 		desc := values.Index(0).Type().Field(i).Tag.Get("description")
+		if fieldName == "-" {
+			continue
+		}
 		descriptions = append(descriptions, desc)
 	}
 	if err := f.SetSheetRow(cfg.SheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.StartRowIndex+1), &descriptions); err != nil {
@@ -94,6 +102,10 @@ func setDescription(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.Ta
 }
 
 func setBody(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableConfig, values reflect.Value) error {
+	startRows := tbCfg.StartRowIndex + 1 // Skip header row
+	if cfg.HasDescription {
+		startRows++ // Skip description row
+	}
 	for i := 0; i < values.Len(); i++ {
 		row := []interface{}{}
 		if cfg.HasIndex {
@@ -105,7 +117,7 @@ func setBody(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableConf
 			}
 			row = append(row, values.Index(i).Field(j).Interface())
 		}
-		if err := f.SetSheetRow(cfg.SheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, i+7), &row); err != nil {
+		if err := f.SetSheetRow(cfg.SheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, i+startRows), &row); err != nil {
 			return err
 		}
 	}
@@ -156,8 +168,16 @@ func setFooter(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableCo
 
 func setStyle(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableConfig) error {
 	boldCenter := config.BoldCenter(f)
+	if err := f.SetCellStyle(cfg.SheetName, "A1", "A1", boldCenter); err != nil {
+		return err
+	}
 	if err := f.SetCellStyle(cfg.SheetName, tbCfg.FirstCell, tbCfg.LastCellCol, boldCenter); err != nil {
 		return err
+	}
+	if cfg.HasDescription {
+		if err := f.SetCellStyle(cfg.SheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.StartRowIndex+1), tbCfg.LastCellCol, boldCenter); err != nil {
+			return err
+		}
 	}
 	if cfg.HasFooter {
 		lastCell := fmt.Sprintf("%v%v", tbCfg.EndColumnKey, tbCfg.EndRowIndex+1)

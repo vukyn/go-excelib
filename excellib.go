@@ -40,10 +40,6 @@ func ExportExcel(objs interface{}, cfg *config.ExportConfig) error {
 	}
 	f.SetActiveSheet(index)
 
-	if err := setMetadata(f, cfg, tbConfig); err != nil {
-		return err
-	}
-
 	if err := setHeader(f, cfg, tbConfig, values); err != nil {
 		return err
 	}
@@ -69,6 +65,10 @@ func ExportExcel(objs interface{}, cfg *config.ExportConfig) error {
 	}
 
 	if err := setTable(f, cfg, tbConfig); err != nil {
+		return err
+	}
+
+	if err := setMetadata(f, cfg, tbConfig); err != nil {
 		return err
 	}
 
