@@ -5,13 +5,14 @@ import (
 )
 
 const (
-	DEFAULT_TITLE      = "Export Example Excel Title"
-	DEFAULT_SHEET_NAME = "Sheet1"
-	DEFAULT_TABLE_NAME = "Table1"
-	DEFAULT_INDEX_NAME = "No."
-	EXCEL_COLUMN       = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	OFFSET             = 6
-	MAX_ROW            = 1000000
+	DEFAULT_TITLE       = "Export Example Excel Title"
+	DEFAULT_SHEET_NAME  = "Sheet1"
+	DEFAULT_TABLE_NAME  = "Table1"
+	DEFAULT_INDEX_NAME  = "No."
+	DEFAULT_TABLE_STYLE = "TableStyleLight9"
+	EXCEL_COLUMN        = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	OFFSET              = 6
+	MAX_ROW             = 1000000
 )
 
 type ExportConfig struct {
@@ -30,6 +31,13 @@ type ExportConfig struct {
 	ShowFirstColumn bool
 	// Display special formatting for the last column
 	ShowLastColumn bool
+
+	// StyleName: The built-in table style names
+	//
+	//	TableStyleLight1 - TableStyleLight21
+	//	TableStyleMedium1 - TableStyleMedium28
+	//	TableStyleDark1 - TableStyleDark11
+	TableStyle string
 }
 
 type TableConfig struct {

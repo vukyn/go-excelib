@@ -28,6 +28,9 @@ func validateConfig(cfg *config.ExportConfig) {
 	if cfg.IndexName == "" {
 		cfg.IndexName = config.DEFAULT_INDEX_NAME
 	}
+	if cfg.TableStyle == "" {
+		cfg.TableStyle = config.DEFAULT_TABLE_STYLE
+	}
 }
 
 func setMetadata(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableConfig) error {
@@ -186,7 +189,7 @@ func setTable(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableCon
 	if err := f.AddTable(cfg.SheetName, &excelize.Table{
 		Range:           refRange,
 		Name:            cfg.TableName,
-		StyleName:       "TableStyleLight9",
+		StyleName:       cfg.TableStyle,
 		ShowFirstColumn: cfg.ShowFirstColumn,
 		ShowLastColumn:  cfg.ShowLastColumn,
 	}); err != nil {
