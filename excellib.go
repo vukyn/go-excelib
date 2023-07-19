@@ -95,6 +95,9 @@ func (e *Excelib) ExportToFile(filePath, fileName string) error {
 	pathExport := filePath + "/{time}_{file}.xlsx"
 	pathExport = strings.ReplaceAll(pathExport, "{time}", time.Now().Format("2006_01_02_15_04_05"))
 	pathExport = strings.ReplaceAll(pathExport, "{file}", fileName)
+	if err := createFilePath(pathExport); err != nil {
+		return err
+	}
 	if err := e.File.SaveAs(pathExport); err != nil {
 		return err
 	}

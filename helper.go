@@ -2,6 +2,8 @@ package excelib
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
@@ -191,4 +193,17 @@ func setTable(f *excelize.File, cfg *config.ExportConfig, tbCfg *config.TableCon
 		return err
 	}
 	return nil
+}
+
+func createFilePath(filePath string) error {
+	path, _ := filepath.Split(filePath)
+	if len(path) == 0 {
+		return nil
+	}
+
+	_, err := os.Stat(path)
+	if err != nil || os.IsExist(err) {
+		err = os.MkdirAll(path, os.ModePerm)
+	}
+	return err
 }
