@@ -73,7 +73,7 @@ func setHeader(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.Tabl
 		}
 		headers = append(headers, fieldName)
 	}
-	if err := f.SetSheetRow(cfg.SheetName, "A6", &headers); err != nil {
+	if err := f.SetSheetRow(cfg.SheetName, tbConfig.FirstCell, &headers); err != nil {
 		return err
 	}
 	return nil
@@ -91,7 +91,7 @@ func setBody(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableC
 			}
 			row = append(row, values.Index(i).Field(j).Interface())
 		}
-		if err := f.SetSheetRow(cfg.SheetName, fmt.Sprintf("A%v", i+7), &row); err != nil {
+		if err := f.SetSheetRow(cfg.SheetName, fmt.Sprintf("%v%v", tbConfig.StartColumnKey, i+7), &row); err != nil {
 			return err
 		}
 	}
@@ -153,14 +153,14 @@ func setStyle(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.Table
 	if err != nil {
 		return err
 	}
-	if err := f.SetCellStyle(cfg.SheetName, "A6", tbConfig.LastCellCol, styleBoldCenter); err != nil {
+	if err := f.SetCellStyle(cfg.SheetName, tbConfig.FirstCell, tbConfig.LastCellCol, styleBoldCenter); err != nil {
 		return err
 	}
 	return nil
 }
 
 func setTable(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableConfig) error {
-	refRange := fmt.Sprintf("A6:%v", tbConfig.LastCell)
+	refRange := fmt.Sprintf("%v:%v", tbConfig.FirstCell, tbConfig.LastCell)
 	if err := f.AddTable(cfg.SheetName, &excelize.Table{
 		Range:           refRange,
 		Name:            cfg.TableName,

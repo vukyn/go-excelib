@@ -23,27 +23,41 @@ type Excelib struct {
 }
 
 type ExportConfig struct {
-	FileName        string
-	Title           string
-	SheetName       string
-	TableName       string
-	HasIndex        bool
-	IndexName       string
-	HasFooter       bool
+	FileName  string
+	Title     string
+	SheetName string
+	TableName string
+	// Index column with auto increment
+	HasIndex bool
+	// Index column name
+	IndexName string
+	// Footer row with function
+	HasFooter bool
+	// Additional description row below header row
+	HasDescription bool
+	// Display special formatting for the first column
 	ShowFirstColumn bool
-	ShowLastColumn  bool
+	// Display special formatting for the last column
+	ShowLastColumn bool
 }
 
 type TableConfig struct {
-	NumFields      int
+	// Total fields in the table (include index field, skip ignore field)
+	NumFields int
+	// Total rows in the table (ignore header row)
 	NumRows        int
 	StartColumnKey string
 	EndColumnKey   string
 	StartRowIndex  int
 	EndRowIndex    int
-	LastCell       string
-	LastCellRow    string
-	LastCellCol    string
+	// FirstCell = StartColumnKey + StartRowIndex
+	FirstCell string
+	// LastCell = EndColumnKey + EndRowIndex
+	LastCell string
+	// LastCellRow = StartColumnKey + EndRowIndex
+	LastCellRow string
+	// LastCellCol = EndColumnKey + StartRowIndex
+	LastCellCol string
 }
 
 func (t *TableConfig) ResetTableConfig() {
@@ -51,7 +65,8 @@ func (t *TableConfig) ResetTableConfig() {
 	t.EndColumnKey = string(EXCEL_COLUMN[t.NumFields])
 	t.StartRowIndex = OFFSET_COLUMN
 	t.EndRowIndex = t.NumRows + OFFSET_COLUMN
-	t.LastCell = fmt.Sprintf("%v%v", string(EXCEL_COLUMN[t.NumFields]), t.NumRows+OFFSET_COLUMN)
-	t.LastCellRow = fmt.Sprintf("A%v", t.NumRows+OFFSET_COLUMN)
-	t.LastCellCol = fmt.Sprintf("%v%v", string(EXCEL_COLUMN[t.NumFields]), OFFSET_COLUMN)
+	t.FirstCell = fmt.Sprintf("%v%v", t.StartColumnKey, t.StartRowIndex)
+	t.LastCell = fmt.Sprintf("%v%v", t.EndColumnKey, t.EndRowIndex)
+	t.LastCellRow = fmt.Sprintf("%v%v", t.StartColumnKey, t.EndRowIndex)
+	t.LastCellCol = fmt.Sprintf("%v%v", t.EndColumnKey, t.StartRowIndex)
 }
