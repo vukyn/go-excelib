@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/vukyn/go-excelib/config"
-	"github.com/vukyn/go-excelib/constants"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -23,19 +22,19 @@ func validateConfig(cfg *config.ExportConfig) {
 		cfg = &config.ExportConfig{}
 	}
 	if cfg.FileName == "" {
-		cfg.FileName = constants.DEFAULT_FILE_NAME
+		cfg.FileName = config.DEFAULT_FILE_NAME
 	}
 	if cfg.Title == "" {
-		cfg.Title = constants.DEFAULT_TITLE
+		cfg.Title = config.DEFAULT_TITLE
 	}
 	if cfg.SheetName == "" {
-		cfg.SheetName = constants.DEFAULT_SHEET_NAME
+		cfg.SheetName = config.DEFAULT_SHEET_NAME
 	}
 	if cfg.TableName == "" {
-		cfg.TableName = constants.DEFAULT_TABLE_NAME
+		cfg.TableName = config.DEFAULT_TABLE_NAME
 	}
 	if cfg.IndexName == "" {
-		cfg.IndexName = constants.DEFAULT_INDEX_NAME
+		cfg.IndexName = config.DEFAULT_INDEX_NAME
 	}
 }
 
@@ -100,6 +99,44 @@ func setBody(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableC
 }
 
 func setFooter(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableConfig, values reflect.Value) error {
+	lastRowIndex := tbConfig.EndRowIndex + 1
+	if cfg.HasIndex {
+		if err := f.SetCellValue(cfg.SheetName, fmt.Sprintf("%v%v", tbConfig.StartColumnKey, lastRowIndex), "Total"); err != nil {
+			return err
+		}
+	}
+
+	skipFields := 0
+	if cfg.HasIndex {
+		skipFields--
+	}
+	formulaType := excelize.STCellFormulaTypeDataTable
+	for i := 0; i < values.Index(0).NumField(); i++ {
+		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
+		if fieldName == "-" {
+			skipFields++
+			continue
+		}
+		cell := fmt.Sprintf("%v%v", string(config.EXCEL_COLUMN[i-skipFields]), lastRowIndex)
+		switch strings.ToLower(values.Index(0).Type().Field(i).Tag.Get("footer")) {
+		case "sum":
+			if err := f.SetCellFormula(cfg.SheetName, cell, fmt.Sprintf("Sum(%v[%v])", cfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
+				return err
+			}
+		case "max":
+			if err := f.SetCellFormula(cfg.SheetName, cell, fmt.Sprintf("Max(%v[%v])", cfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
+				return err
+			}
+		case "min":
+			if err := f.SetCellFormula(cfg.SheetName, cell, fmt.Sprintf("Min(%v[%v])", cfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
+				return err
+			}
+		case "average":
+			if err := f.SetCellFormula(cfg.SheetName, cell, fmt.Sprintf("Average(%v[%v])", cfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -125,9 +162,11 @@ func setStyle(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.Table
 func setTable(f *excelize.File, cfg *config.ExportConfig, tbConfig *config.TableConfig) error {
 	refRange := fmt.Sprintf("A6:%v", tbConfig.LastCell)
 	if err := f.AddTable(cfg.SheetName, &excelize.Table{
-		Range:     refRange,
-		Name:      cfg.TableName,
-		StyleName: "TableStyleLight9",
+		Range:           refRange,
+		Name:            cfg.TableName,
+		StyleName:       "TableStyleLight9",
+		ShowFirstColumn: cfg.ShowFirstColumn,
+		ShowLastColumn:  cfg.ShowLastColumn,
 	}); err != nil {
 		return err
 	}

@@ -18,6 +18,9 @@ func ExportExcel(objs interface{}, cfg *config.ExportConfig) error {
 	if values.Len() == 0 {
 		return fmt.Errorf("ExportExcel: objs must be not empty")
 	}
+	if values.Len() > config.MAX_ROW {
+		return fmt.Errorf("ExportExcel: objs must be less than %v records", config.MAX_ROW)
+	}
 	if values.Index(0).Kind() != reflect.Struct {
 		return fmt.Errorf("ExportExcel: objs must be a slice of struct")
 	}
