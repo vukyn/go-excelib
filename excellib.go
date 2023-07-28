@@ -3,17 +3,16 @@ package excelib
 import (
 	"fmt"
 	"reflect"
-	"strings"
-	"time"
 
 	"github.com/vukyn/go-excelib/config"
+	"github.com/vukyn/go-excelib/utils"
 	"github.com/xuri/excelize/v2"
 )
 
 type Excelib struct {
-	cfg  *config.ExportConfig
-	File *excelize.File
-	// Stream *excelize.StreamWriter
+	cfg    *config.ExportConfig
+	File   *excelize.File
+	Stream *excelize.StreamWriter
 }
 
 func Init(cfg *config.ExportConfig) *Excelib {
@@ -23,7 +22,11 @@ func Init(cfg *config.ExportConfig) *Excelib {
 	}
 }
 
-func (e *Excelib) Process(objs interface{}) error {
+func (e *Excelib) SetFileName(path, name string) string {
+	return e.cfg.SetFileName(path, name)
+}
+
+func (e *Excelib) Process(sheetName string, objs interface{}) error {
 
 	// validate
 	values := reflect.ValueOf(objs)
@@ -47,58 +50,139 @@ func (e *Excelib) Process(objs interface{}) error {
 	tbConfig.ResetTableConfig()
 
 	// init file
-	f := excelize.NewFile()
-	index, err := f.NewSheet(e.cfg.SheetName)
-	if err != nil {
-		return err
+	if e.File == nil {
+		e.File = excelize.NewFile()
+		e.File.SetSheetName("Sheet1", sheetName)
+		e.File.SetActiveSheet(0)
+	} else {
+		index, err := e.File.NewSheet(sheetName)
+		if err != nil {
+			return err
+		}
+		e.File.SetActiveSheet(index)
 	}
-	f.SetActiveSheet(index)
 
-	if err := setHeader(f, e.cfg, tbConfig, values); err != nil {
+	e.recalculateConfig(tbConfig, values)
+
+	if err := e.setHeader(tbConfig, values); err != nil {
 		return err
 	}
 
 	if e.cfg.HasDescription {
-		if err := setDescription(f, e.cfg, tbConfig, values); err != nil {
+		if err := e.setDescription(tbConfig, values); err != nil {
 			return err
 		}
 	}
 
-	if err := setBody(f, e.cfg, tbConfig, values); err != nil {
+	if err := e.setBody(tbConfig, values); err != nil {
 		return err
 	}
 
 	if e.cfg.HasFooter {
-		if err := setFooter(f, e.cfg, tbConfig, values); err != nil {
+		if err := e.setFooter(tbConfig, values); err != nil {
 			return err
 		}
 	}
 
-	if err := setStyle(f, e.cfg, tbConfig); err != nil {
+	if err := e.setStyle(tbConfig); err != nil {
 		return err
 	}
 
-	if err := setTable(f, e.cfg, tbConfig); err != nil {
+	if err := e.setTable(tbConfig); err != nil {
 		return err
 	}
 
-	if err := setMetadata(f, e.cfg, tbConfig); err != nil {
+	if err := e.setMetadata(tbConfig); err != nil {
 		return err
 	}
-
-	e.File = f
 
 	return nil
 }
 
-func (e *Excelib) ExportToFile(filePath, fileName string) error {
-	pathExport := filePath + "/{time}_{file}.xlsx"
-	pathExport = strings.ReplaceAll(pathExport, "{time}", time.Now().Format("2006_01_02_15_04_05"))
-	pathExport = strings.ReplaceAll(pathExport, "{file}", fileName)
-	if err := createFilePath(pathExport); err != nil {
+// ProcessStream writing data on a new existing empty worksheet with large amounts of data.
+func (e *Excelib) ProcessStream(sheetName string, objs interface{}) error {
+
+	// validate
+	values := reflect.ValueOf(objs)
+	if values.Kind() != reflect.Slice {
+		return fmt.Errorf("ExportExcel: objs must be a slice")
+	}
+	if values.Len() == 0 {
+		return fmt.Errorf("ExportExcel: objs must be not empty")
+	}
+	if values.Len() > config.MAX_ROW {
+		return fmt.Errorf("ExportExcel: objs must be less than %v records", config.MAX_ROW)
+	}
+	if values.Index(0).Kind() != reflect.Struct {
+		return fmt.Errorf("ExportExcel: objs must be a slice of struct")
+	}
+
+	// init value
+	tbConfig := &config.TableConfig{}
+	tbConfig.NumRows = values.Len()
+	tbConfig.NumFields = values.Index(0).NumField() - 1
+	tbConfig.ResetTableConfig()
+
+	// init stream
+	if e.File == nil {
+		e.File = excelize.NewFile()
+		e.File.SetSheetName("Sheet1", sheetName)
+		stream, err := e.File.NewStreamWriter(sheetName)
+		if err != nil {
+			return err
+		}
+		e.Stream = stream
+	}
+	if e.Stream == nil {
+		stream, err := e.File.NewStreamWriter(sheetName)
+		if err != nil {
+			return err
+		}
+		e.Stream = stream
+	}
+
+	e.recalculateConfig(tbConfig, values)
+
+	if err := e.setStreamMetadata(tbConfig); err != nil {
 		return err
 	}
-	if err := e.File.SaveAs(pathExport); err != nil {
+
+	if err := e.setStreamHeader(tbConfig, values); err != nil {
+		return err
+	}
+
+	if e.cfg.HasDescription {
+		if err := e.setStreamDescription(tbConfig, values); err != nil {
+			return err
+		}
+	}
+
+	if err := e.setStreamBody(tbConfig, values); err != nil {
+		return err
+	}
+
+	if e.cfg.HasFooter {
+		if err := e.setStreamFooter(tbConfig, values); err != nil {
+			return err
+		}
+	}
+
+	if err := e.setStreamTable(tbConfig); err != nil {
+		return err
+	}
+
+	if err := e.Stream.Flush(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *Excelib) Save() error {
+	if err := utils.CreateFilePath(e.cfg.GetFileName()); err != nil {
+		return err
+	}
+	if err := e.File.SaveAs(e.cfg.GetFileName()); err != nil {
 		return err
 	}
 	return nil

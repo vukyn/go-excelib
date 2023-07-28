@@ -2,23 +2,15 @@ package config
 
 import (
 	"fmt"
-)
-
-const (
-	DEFAULT_TITLE       = "Export Example Excel Title"
-	DEFAULT_SHEET_NAME  = "Sheet1"
-	DEFAULT_TABLE_NAME  = "Table1"
-	DEFAULT_INDEX_NAME  = "No."
-	DEFAULT_TABLE_STYLE = "TableStyleLight9"
-	EXCEL_COLUMN        = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	OFFSET              = 6
-	MAX_ROW             = 1000000
+	"strings"
+	"time"
 )
 
 type ExportConfig struct {
 	Title     string
-	SheetName string
 	TableName string
+	fileName  string
+	Type      ExportType
 	// Index column with auto increment
 	HasIndex bool
 	// Index column name
@@ -38,6 +30,18 @@ type ExportConfig struct {
 	//	TableStyleMedium1 - TableStyleMedium28
 	//	TableStyleDark1 - TableStyleDark11
 	TableStyle string
+}
+
+func (e *ExportConfig) SetFileName(path, name string) string {
+	filepath := path + "/{time}_{file}.xlsx"
+	filepath = strings.ReplaceAll(filepath, "{time}", time.Now().Format("2006_01_02_15_04_05"))
+	filepath = strings.ReplaceAll(filepath, "{file}", name)
+	e.fileName = filepath
+	return e.fileName
+}
+
+func (e *ExportConfig) GetFileName() string {
+	return e.fileName
 }
 
 type TableConfig struct {
@@ -60,8 +64,8 @@ type TableConfig struct {
 }
 
 func (t *TableConfig) ResetTableConfig() {
-	t.StartColumnKey = string(EXCEL_COLUMN[0])
-	t.EndColumnKey = string(EXCEL_COLUMN[t.NumFields])
+	t.StartColumnKey = EXCEL_COLUMN[0]
+	t.EndColumnKey = EXCEL_COLUMN[t.NumFields]
 	t.StartRowIndex = OFFSET
 	t.EndRowIndex = t.NumRows + t.StartRowIndex
 	t.FirstCell = fmt.Sprintf("%v%v", t.StartColumnKey, t.StartRowIndex)
