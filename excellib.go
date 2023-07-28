@@ -64,6 +64,10 @@ func (e *Excelib) Process(sheetName string, objs interface{}) error {
 
 	e.recalculateConfig(tbConfig, values)
 
+	if err := e.setMetadata(tbConfig); err != nil {
+		return err
+	}
+	
 	if err := e.setHeader(tbConfig, values); err != nil {
 		return err
 	}
@@ -89,10 +93,6 @@ func (e *Excelib) Process(sheetName string, objs interface{}) error {
 	}
 
 	if err := e.setTable(tbConfig); err != nil {
-		return err
-	}
-
-	if err := e.setMetadata(tbConfig); err != nil {
 		return err
 	}
 
