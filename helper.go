@@ -28,7 +28,7 @@ func validateConfig(cfg *config.ExportConfig) {
 	}
 }
 
-func (e *Excelib) recalculateConfig(tbCfg *config.TableConfig, values reflect.Value) {
+func (e *excelib) recalculateConfig(tbCfg *config.TableConfig, values reflect.Value) {
 	if e.cfg.HasIndex {
 		tbCfg.NumFields++
 	}
@@ -44,7 +44,7 @@ func (e *Excelib) recalculateConfig(tbCfg *config.TableConfig, values reflect.Va
 	tbCfg.ResetTableConfig()
 }
 
-func (e *Excelib) setMetadata(tbCfg *config.TableConfig) error {
+func (e *excelib) setMetadata(tbCfg *config.TableConfig) error {
 	sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
 	if err := e.File.SetCellValue(sheetName, "A1", e.cfg.Title); err != nil {
 		return err
@@ -61,7 +61,7 @@ func (e *Excelib) setMetadata(tbCfg *config.TableConfig) error {
 	return nil
 }
 
-func (e *Excelib) setStreamMetadata(tbCfg *config.TableConfig) error {
+func (e *excelib) setStreamMetadata(tbCfg *config.TableConfig) error {
 	boldCenter := config.BoldCenter(e.File)
 	if err := e.Stream.SetRow("A1", []interface{}{excelize.Cell{Value: e.cfg.Title, StyleID: boldCenter}}); err != nil {
 		return err
@@ -78,7 +78,7 @@ func (e *Excelib) setStreamMetadata(tbCfg *config.TableConfig) error {
 	return nil
 }
 
-func (e *Excelib) setHeader(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setHeader(tbCfg *config.TableConfig, values reflect.Value) error {
 	headers := []string{}
 	if e.cfg.HasIndex {
 		headers = append(headers, e.cfg.IndexName)
@@ -100,7 +100,7 @@ func (e *Excelib) setHeader(tbCfg *config.TableConfig, values reflect.Value) err
 	return nil
 }
 
-func (e *Excelib) setStreamHeader(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setStreamHeader(tbCfg *config.TableConfig, values reflect.Value) error {
 	headers := []interface{}{}
 	boldCenter := config.BoldCenter(e.File)
 	if e.cfg.HasIndex {
@@ -122,7 +122,7 @@ func (e *Excelib) setStreamHeader(tbCfg *config.TableConfig, values reflect.Valu
 	return nil
 }
 
-func (e *Excelib) setDescription(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setDescription(tbCfg *config.TableConfig, values reflect.Value) error {
 	descriptions := []string{}
 	tbCfg.NumRows++
 	tbCfg.ResetTableConfig()
@@ -145,7 +145,7 @@ func (e *Excelib) setDescription(tbCfg *config.TableConfig, values reflect.Value
 	return nil
 }
 
-func (e *Excelib) setStreamDescription(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setStreamDescription(tbCfg *config.TableConfig, values reflect.Value) error {
 	descriptions := []interface{}{}
 	boldCenter := config.BoldCenter(e.File)
 	if e.cfg.HasIndex {
@@ -166,7 +166,7 @@ func (e *Excelib) setStreamDescription(tbCfg *config.TableConfig, values reflect
 	return nil
 }
 
-func (e *Excelib) setBody(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setBody(tbCfg *config.TableConfig, values reflect.Value) error {
 	startRows := tbCfg.StartRowIndex + 1 // Skip header row
 	if e.cfg.HasDescription {
 		startRows++ // Skip description row
@@ -190,7 +190,7 @@ func (e *Excelib) setBody(tbCfg *config.TableConfig, values reflect.Value) error
 	return nil
 }
 
-func (e *Excelib) setStreamBody(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setStreamBody(tbCfg *config.TableConfig, values reflect.Value) error {
 	center := config.Center(e.File)
 	startRows := tbCfg.StartRowIndex + 1 // Skip header row
 	if e.cfg.HasDescription {
@@ -214,7 +214,7 @@ func (e *Excelib) setStreamBody(tbCfg *config.TableConfig, values reflect.Value)
 	return nil
 }
 
-func (e *Excelib) setFooter(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setFooter(tbCfg *config.TableConfig, values reflect.Value) error {
 	lastRowIndex := tbCfg.EndRowIndex + 1
 	sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
 	if e.cfg.HasIndex {
@@ -257,7 +257,7 @@ func (e *Excelib) setFooter(tbCfg *config.TableConfig, values reflect.Value) err
 	return nil
 }
 
-func (e *Excelib) setStreamFooter(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setStreamFooter(tbCfg *config.TableConfig, values reflect.Value) error {
 	footers := []interface{}{}
 	boldCenter := config.BoldCenter(e.File)
 	if e.cfg.HasIndex {
@@ -293,7 +293,7 @@ func (e *Excelib) setStreamFooter(tbCfg *config.TableConfig, values reflect.Valu
 	return nil
 }
 
-func (e *Excelib) setStyle(tbCfg *config.TableConfig) error {
+func (e *excelib) setStyle(tbCfg *config.TableConfig) error {
 	center := config.Center(e.File)
 	boldCenter := config.BoldCenter(e.File)
 	sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
@@ -323,7 +323,7 @@ func (e *Excelib) setStyle(tbCfg *config.TableConfig) error {
 	return nil
 }
 
-func (e *Excelib) setTable(tbCfg *config.TableConfig) error {
+func (e *excelib) setTable(tbCfg *config.TableConfig) error {
 	sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
 	refRange := fmt.Sprintf("%v:%v", tbCfg.FirstCell, tbCfg.LastCell)
 	if err := e.File.AddTable(sheetName, &excelize.Table{
@@ -338,7 +338,7 @@ func (e *Excelib) setTable(tbCfg *config.TableConfig) error {
 	return nil
 }
 
-func (e *Excelib) setStreamTable(tbCfg *config.TableConfig) error {
+func (e *excelib) setStreamTable(tbCfg *config.TableConfig) error {
 	refRange := fmt.Sprintf("%v:%v", tbCfg.FirstCell, tbCfg.LastCell)
 	if err := e.Stream.AddTable(&excelize.Table{
 		Range:           refRange,

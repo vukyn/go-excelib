@@ -9,24 +9,31 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-type Excelib struct {
+type Excelib interface {
+	SetFileName(path, name string) string
+	Process(sheetName string, objs interface{}) error
+	ProcessStream(sheetName string, objs interface{}) error
+	Save() error
+}
+
+type excelib struct {
 	cfg    *config.ExportConfig
 	File   *excelize.File
 	Stream *excelize.StreamWriter
 }
 
-func Init(cfg *config.ExportConfig) *Excelib {
+func New(cfg *config.ExportConfig) Excelib {
 	validateConfig(cfg)
-	return &Excelib{
+	return &excelib{
 		cfg: cfg,
 	}
 }
 
-func (e *Excelib) SetFileName(path, name string) string {
+func (e *excelib) SetFileName(path, name string) string {
 	return e.cfg.SetFileName(path, name)
 }
 
-func (e *Excelib) Process(sheetName string, objs interface{}) error {
+func (e *excelib) Process(sheetName string, objs interface{}) error {
 
 	// validate
 	values := reflect.ValueOf(objs)
@@ -100,7 +107,7 @@ func (e *Excelib) Process(sheetName string, objs interface{}) error {
 }
 
 // ProcessStream writing data on a new existing empty worksheet with large amounts of data.
-func (e *Excelib) ProcessStream(sheetName string, objs interface{}) error {
+func (e *excelib) ProcessStream(sheetName string, objs interface{}) error {
 
 	// validate
 	values := reflect.ValueOf(objs)
@@ -178,7 +185,7 @@ func (e *Excelib) ProcessStream(sheetName string, objs interface{}) error {
 	return nil
 }
 
-func (e *Excelib) Save() error {
+func (e *excelib) Save() error {
 	if err := utils.CreateFilePath(e.cfg.GetFileName()); err != nil {
 		return err
 	}
