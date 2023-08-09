@@ -73,3 +73,18 @@ func (t *TableConfig) ResetTableConfig() {
 	t.LastCellRow = fmt.Sprintf("%v%v", t.StartColumnKey, t.EndRowIndex)
 	t.LastCellCol = fmt.Sprintf("%v%v", t.EndColumnKey, t.StartRowIndex)
 }
+
+type Metadata struct {
+	// The name given to the resource.
+	Title string
+	//  The topic of the content of the resource.
+	Subject string
+	//  The author responsible for the resource.
+	Creator string
+	// Primary language of the resource.
+	Language string
+	// The version number.
+	Version string
+	// Explanation of the content of the resource.
+	Description string
+}

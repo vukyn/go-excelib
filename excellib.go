@@ -4,33 +4,23 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/jinzhu/copier"
 	"github.com/vukyn/go-excelib/config"
 	"github.com/vukyn/go-excelib/utils"
 	"github.com/xuri/excelize/v2"
 )
 
-type Excelib interface {
-	SetFileName(path, name string) string
-	Process(sheetName string, objs interface{}) error
-	ProcessStream(sheetName string, objs interface{}) error
-	Save() error
-}
-
-type excelib struct {
-	cfg    *config.ExportConfig
-	File   *excelize.File
-	Stream *excelize.StreamWriter
-}
-
-func New(cfg *config.ExportConfig) Excelib {
-	validateConfig(cfg)
-	return &excelib{
-		cfg: cfg,
-	}
-}
-
 func (e *excelib) SetFileName(path, name string) string {
 	return e.cfg.SetFileName(path, name)
+}
+
+func (e *excelib) SetMetadata(metadata *config.Metadata) error {
+	docProps := &excelize.DocProperties{}
+	copier.Copy(docProps, metadata)
+	if err := e.File.SetDocProps(docProps); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (e *excelib) Process(sheetName string, objs interface{}) error {
@@ -56,9 +46,8 @@ func (e *excelib) Process(sheetName string, objs interface{}) error {
 	tbConfig.NumFields = values.Index(0).NumField() - 1
 	tbConfig.ResetTableConfig()
 
-	// init file
-	if e.File == nil {
-		e.File = excelize.NewFile()
+	// init sheet
+	if e.File.GetSheetName(0) == "Sheet1" {
 		e.File.SetSheetName("Sheet1", sheetName)
 		e.File.SetActiveSheet(0)
 	} else {
@@ -74,7 +63,7 @@ func (e *excelib) Process(sheetName string, objs interface{}) error {
 	if err := e.setMetadata(tbConfig); err != nil {
 		return err
 	}
-	
+
 	if err := e.setHeader(tbConfig, values); err != nil {
 		return err
 	}
@@ -130,17 +119,20 @@ func (e *excelib) ProcessStream(sheetName string, objs interface{}) error {
 	tbConfig.NumFields = values.Index(0).NumField() - 1
 	tbConfig.ResetTableConfig()
 
-	// init stream
-	if e.File == nil {
-		e.File = excelize.NewFile()
+	// init sheet
+	if e.File.GetSheetName(0) == "Sheet1" {
 		e.File.SetSheetName("Sheet1", sheetName)
 		stream, err := e.File.NewStreamWriter(sheetName)
 		if err != nil {
 			return err
 		}
 		e.Stream = stream
-	}
-	if e.Stream == nil {
+	} else {
+		index, err := e.File.NewSheet(sheetName)
+		if err != nil {
+			return err
+		}
+		e.File.SetActiveSheet(index)
 		stream, err := e.File.NewStreamWriter(sheetName)
 		if err != nil {
 			return err
@@ -186,6 +178,7 @@ func (e *excelib) ProcessStream(sheetName string, objs interface{}) error {
 }
 
 func (e *excelib) Save() error {
+	e.File.SetActiveSheet(0)
 	if err := utils.CreateFilePath(e.cfg.GetFileName()); err != nil {
 		return err
 	}

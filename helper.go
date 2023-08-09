@@ -217,21 +217,18 @@ func (e *excelib) setStreamBody(tbCfg *config.TableConfig, values reflect.Value)
 func (e *excelib) setFooter(tbCfg *config.TableConfig, values reflect.Value) error {
 	lastRowIndex := tbCfg.EndRowIndex + 1
 	sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
-	if e.cfg.HasIndex {
-		if err := e.File.SetCellValue(sheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, lastRowIndex), "Total"); err != nil {
-			return err
-		}
-	}
 
 	skipFields := 0
 	if e.cfg.HasIndex {
 		skipFields--
 	}
+	counter := values.Index(0).NumField()
 	formulaType := excelize.STCellFormulaTypeDataTable
 	for i := 0; i < values.Index(0).NumField(); i++ {
 		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
 		if fieldName == "-" {
 			skipFields++
+			counter--
 			continue
 		}
 		cell := fmt.Sprintf("%v%v", string(config.EXCEL_COLUMN[i-skipFields]), lastRowIndex)
@@ -252,6 +249,14 @@ func (e *excelib) setFooter(tbCfg *config.TableConfig, values reflect.Value) err
 			if err := e.File.SetCellFormula(sheetName, cell, fmt.Sprintf("Average(%v[%v])", e.cfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
 				return err
 			}
+		default:
+			counter--
+		}
+	}
+
+	if e.cfg.HasIndex && counter > 0 {
+		if err := e.File.SetCellValue(sheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, lastRowIndex), "Total"); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -260,18 +265,12 @@ func (e *excelib) setFooter(tbCfg *config.TableConfig, values reflect.Value) err
 func (e *excelib) setStreamFooter(tbCfg *config.TableConfig, values reflect.Value) error {
 	footers := []interface{}{}
 	boldCenter := config.BoldCenter(e.File)
-	if e.cfg.HasIndex {
-		footers = append(footers, excelize.Cell{Value: "Total", StyleID: boldCenter})
-	}
 
-	skipFields := 0
-	if e.cfg.HasIndex {
-		skipFields--
-	}
+	counter := values.Index(0).NumField()
 	for i := 0; i < values.Index(0).NumField(); i++ {
 		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
 		if fieldName == "-" {
-			skipFields++
+			counter--
 			continue
 		}
 		switch strings.ToLower(values.Index(0).Type().Field(i).Tag.Get("footer")) {
@@ -284,8 +283,12 @@ func (e *excelib) setStreamFooter(tbCfg *config.TableConfig, values reflect.Valu
 		case "average":
 			footers = append(footers, excelize.Cell{Formula: fmt.Sprintf("Average(%v[%v])", e.cfg.TableName, fieldName), StyleID: boldCenter})
 		default:
+			counter--
 			footers = append(footers, nil)
 		}
+	}
+	if e.cfg.HasIndex && counter > 0 {
+		footers = append([]interface{}{excelize.Cell{Value: "Total", StyleID: boldCenter}}, footers...)
 	}
 	if err := e.Stream.SetRow(fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.EndRowIndex+1), footers); err != nil {
 		return err
