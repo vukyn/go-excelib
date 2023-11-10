@@ -65,7 +65,7 @@ type TableConfig struct {
 
 func (t *TableConfig) ResetTableConfig() {
 	t.StartColumnKey = EXCEL_COLUMN[0]
-	t.EndColumnKey = EXCEL_COLUMN[t.NumFields]
+	t.EndColumnKey = EXCEL_COLUMN[t.NumFields-1]
 	t.StartRowIndex = OFFSET
 	t.EndRowIndex = t.NumRows + t.StartRowIndex
 	t.FirstCell = fmt.Sprintf("%v%v", t.StartColumnKey, t.StartRowIndex)

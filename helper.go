@@ -28,225 +28,251 @@ func validateConfig(cfg *config.ExportConfig) {
 	}
 }
 
-func (e *excelib) recalculateConfig(tbCfg *config.TableConfig, values reflect.Value) {
-	if e.cfg.HasIndex {
-		tbCfg.NumFields++
+func validateObj(objs []interface{}) (reflect.Value, error) {
+	values := reflect.ValueOf(objs[0])
+	if len(objs) == 0 {
+		return values, fmt.Errorf("objs must be not empty")
 	}
-	if e.cfg.HasDescription {
-		tbCfg.NumRows++
+	if len(objs) > config.MAX_ROW {
+		return values, fmt.Errorf("objs must be less than %v records", config.MAX_ROW)
 	}
-	for i := 0; i < values.Index(0).NumField(); i++ {
-		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
+	if values.Kind() != reflect.Struct {
+		return values, fmt.Errorf("objs must be a slice of struct")
+	}
+	return values, nil
+}
+
+func (e *excelib) recalculateConfig(values reflect.Value) {
+	if e.exportCfg.HasIndex {
+		e.tbCfg.NumFields++
+	}
+	if e.exportCfg.HasDescription {
+		e.tbCfg.NumRows++
+	}
+	for i := 0; i < values.NumField(); i++ {
+		fieldName := values.Type().Field(i).Tag.Get("field")
 		if fieldName == "-" {
-			tbCfg.NumFields--
+			e.tbCfg.NumFields--
 		}
 	}
-	tbCfg.ResetTableConfig()
+	e.tbCfg.ResetTableConfig()
 }
 
-func (e *excelib) setMetadata(tbCfg *config.TableConfig) error {
-	sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
-	if err := e.File.SetCellValue(sheetName, "A1", e.cfg.Title); err != nil {
+func (e *excelib) setMetadata() error {
+	sheetName := e.file.GetSheetName(e.file.GetActiveSheetIndex())
+	if err := e.file.SetCellValue(sheetName, "A1", e.exportCfg.Title); err != nil {
 		return err
 	}
-	if err := e.File.MergeCell(sheetName, "A1", fmt.Sprintf("%v1", tbCfg.EndColumnKey)); err != nil {
+	if err := e.file.MergeCell(sheetName, "A1", fmt.Sprintf("%v1", e.tbCfg.EndColumnKey)); err != nil {
 		return err
 	}
-	if err := e.File.SetCellValue(sheetName, "A2", fmt.Sprintf("Thời gian: %s", time.Now().Format("02/01/2006 15:04:05"))); err != nil {
+	if err := e.file.SetCellValue(sheetName, "A2", fmt.Sprintf("Thời gian: %s", time.Now().Format("02/01/2006 15:04:05"))); err != nil {
 		return err
 	}
-	if err := e.File.MergeCell(sheetName, "A2", "D2"); err != nil {
+	if err := e.file.MergeCell(sheetName, "A2", "D2"); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *excelib) setStreamMetadata(tbCfg *config.TableConfig) error {
-	boldCenter := config.BoldCenter(e.File)
-	if err := e.Stream.SetRow("A1", []interface{}{excelize.Cell{Value: e.cfg.Title, StyleID: boldCenter}}); err != nil {
+func (e *excelib) setStreamMetadata() error {
+	boldCenter := config.BoldCenter(e.file)
+	if err := e.stream.SetRow("A1", []interface{}{excelize.Cell{Value: e.exportCfg.Title, StyleID: boldCenter}}); err != nil {
 		return err
 	}
-	if err := e.Stream.MergeCell("A1", fmt.Sprintf("%v1", tbCfg.EndColumnKey)); err != nil {
+	if err := e.stream.MergeCell("A1", fmt.Sprintf("%v1", e.tbCfg.EndColumnKey)); err != nil {
 		return err
 	}
-	if err := e.Stream.SetRow("A2", []interface{}{excelize.Cell{Value: fmt.Sprintf("Thời gian: %s", time.Now().Format("02/01/2006 15:04:05"))}}); err != nil {
+	if err := e.stream.SetRow("A2", []interface{}{excelize.Cell{Value: fmt.Sprintf("Thời gian: %s", time.Now().Format("02/01/2006 15:04:05"))}}); err != nil {
 		return err
 	}
-	if err := e.Stream.MergeCell("A2", "D2"); err != nil {
+	if err := e.stream.MergeCell("A2", "D2"); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *excelib) setHeader(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setHeader(values reflect.Value) error {
 	headers := []string{}
-	if e.cfg.HasIndex {
-		headers = append(headers, e.cfg.IndexName)
+	if e.exportCfg.HasIndex {
+		headers = append(headers, e.exportCfg.IndexName)
 	}
-	for i := 0; i < values.Index(0).NumField(); i++ {
-		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
+	for i := 0; i < values.NumField(); i++ {
+		fieldName := values.Type().Field(i).Tag.Get("field")
 		if fieldName == "-" {
 			continue
 		}
 		if fieldName == "" {
-			fieldName = values.Index(0).Type().Field(i).Name
+			fieldName = values.Type().Field(i).Name
 		}
 		headers = append(headers, fieldName)
 	}
-	sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
-	if err := e.File.SetSheetRow(sheetName, tbCfg.FirstCell, &headers); err != nil {
+	sheetName := e.file.GetSheetName(e.file.GetActiveSheetIndex())
+	if err := e.file.SetSheetRow(sheetName, e.tbCfg.FirstCell, &headers); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *excelib) setStreamHeader(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setStreamHeader(values reflect.Value) {
 	headers := []interface{}{}
-	boldCenter := config.BoldCenter(e.File)
-	if e.cfg.HasIndex {
-		headers = append(headers, excelize.Cell{Value: e.cfg.IndexName, StyleID: boldCenter})
+	boldCenter := config.BoldCenter(e.file)
+	if e.exportCfg.HasIndex {
+		headers = append(headers, excelize.Cell{Value: e.exportCfg.IndexName, StyleID: boldCenter})
 	}
-	for i := 0; i < values.Index(0).NumField(); i++ {
-		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
+	for i := 0; i < values.NumField(); i++ {
+		fieldName := values.Type().Field(i).Tag.Get("field")
 		if fieldName == "-" {
 			continue
 		}
 		if fieldName == "" {
-			fieldName = values.Index(0).Type().Field(i).Name
+			fieldName = values.Type().Field(i).Name
 		}
 		headers = append(headers, excelize.Cell{Value: fieldName, StyleID: boldCenter})
 	}
-	if err := e.Stream.SetRow(tbCfg.FirstCell, headers); err != nil {
+	e.headers = headers
+}
+
+func (e *excelib) writeStreamHeader() error {
+	if err := e.stream.SetRow(e.tbCfg.FirstCell, e.headers); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *excelib) setDescription(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setDescription(values reflect.Value) error {
 	descriptions := []string{}
-	tbCfg.NumRows++
-	tbCfg.ResetTableConfig()
-	if e.cfg.HasIndex {
+	e.tbCfg.NumRows++
+	e.tbCfg.ResetTableConfig()
+	if e.exportCfg.HasIndex {
 		descriptions = append(descriptions, "")
 	}
 
-	for i := 0; i < values.Index(0).NumField(); i++ {
-		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
-		desc := values.Index(0).Type().Field(i).Tag.Get("description")
+	for i := 0; i < values.NumField(); i++ {
+		fieldName := values.Type().Field(i).Tag.Get("field")
+		desc := values.Type().Field(i).Tag.Get("description")
 		if fieldName == "-" {
 			continue
 		}
 		descriptions = append(descriptions, desc)
 	}
-	sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
-	if err := e.File.SetSheetRow(sheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.StartRowIndex+1), &descriptions); err != nil {
+	sheetName := e.file.GetSheetName(e.file.GetActiveSheetIndex())
+	if err := e.file.SetSheetRow(sheetName, fmt.Sprintf("%v%v", e.tbCfg.StartColumnKey, e.tbCfg.StartRowIndex+1), &descriptions); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *excelib) setStreamDescription(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setStreamDescription(values reflect.Value) {
 	descriptions := []interface{}{}
-	boldCenter := config.BoldCenter(e.File)
-	if e.cfg.HasIndex {
+	boldCenter := config.BoldCenter(e.file)
+	if e.exportCfg.HasIndex {
 		descriptions = append(descriptions, excelize.Cell{Value: ""})
 	}
 
-	for i := 0; i < values.Index(0).NumField(); i++ {
-		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
-		desc := values.Index(0).Type().Field(i).Tag.Get("description")
+	for i := 0; i < values.NumField(); i++ {
+		fieldName := values.Type().Field(i).Tag.Get("field")
+		desc := values.Type().Field(i).Tag.Get("description")
 		if fieldName == "-" {
 			continue
 		}
 		descriptions = append(descriptions, excelize.Cell{Value: desc, StyleID: boldCenter})
 	}
-	if err := e.Stream.SetRow(fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.StartRowIndex+1), descriptions); err != nil {
+	e.descriptions = descriptions
+}
+
+func (e *excelib) writeStreamDescription() error {
+	if err := e.stream.SetRow(fmt.Sprintf("%v%v", e.tbCfg.StartColumnKey, e.tbCfg.StartRowIndex+1), e.descriptions); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *excelib) setBody(tbCfg *config.TableConfig, values reflect.Value) error {
-	startRows := tbCfg.StartRowIndex + 1 // Skip header row
-	if e.cfg.HasDescription {
+func (e *excelib) setBody(objs []interface{}) error {
+	startRows := e.tbCfg.StartRowIndex + 1 // Skip header row
+	if e.exportCfg.HasDescription {
 		startRows++ // Skip description row
 	}
-	for i := 0; i < values.Len(); i++ {
+	for i := 0; i < len(objs); i++ {
 		row := []interface{}{}
-		if e.cfg.HasIndex {
+		if e.exportCfg.HasIndex {
 			row = append(row, i+1)
 		}
-		for j := 0; j < values.Index(i).NumField(); j++ {
-			if values.Index(i).Type().Field(j).Tag.Get("field") == "-" {
+		value := reflect.ValueOf(objs[i])
+		for j := 0; j < value.NumField(); j++ {
+			if value.Type().Field(j).Tag.Get("field") == "-" {
 				continue
 			}
-			row = append(row, values.Index(i).Field(j).Interface())
+			row = append(row, value.Field(j).Interface())
 		}
-		sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
-		if err := e.File.SetSheetRow(sheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, i+startRows), &row); err != nil {
+		sheetName := e.file.GetSheetName(e.file.GetActiveSheetIndex())
+		if err := e.file.SetSheetRow(sheetName, fmt.Sprintf("%v%v", e.tbCfg.StartColumnKey, i+startRows), &row); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (e *excelib) setStreamBody(tbCfg *config.TableConfig, values reflect.Value) error {
-	center := config.Center(e.File)
-	startRows := tbCfg.StartRowIndex + 1 // Skip header row
-	if e.cfg.HasDescription {
+func (e *excelib) setStreamBody(objs []interface{}) error {
+	center := config.Center(e.file)
+	startRows := e.tbCfg.StartRowIndex + 1 // Skip header row
+	if e.exportCfg.HasDescription {
 		startRows++ // Skip description row
 	}
-	for i := 0; i < values.Len(); i++ {
+	for i := 0; i < len(objs); i++ {
 		row := []interface{}{}
-		if e.cfg.HasIndex {
-			row = append(row, excelize.Cell{Value: i + 1, StyleID: center})
+		if e.exportCfg.HasIndex {
+			row = append(row, excelize.Cell{Value: i + 1 + e.tbCfg.NumRows, StyleID: center})
 		}
-		for j := 0; j < values.Index(i).NumField(); j++ {
-			if values.Index(i).Type().Field(j).Tag.Get("field") == "-" {
+		value := reflect.ValueOf(objs[i])
+		for j := 0; j < value.NumField(); j++ {
+			if value.Type().Field(j).Tag.Get("field") == "-" {
 				continue
 			}
-			row = append(row, excelize.Cell{Value: values.Index(i).Field(j).Interface()})
+			row = append(row, excelize.Cell{Value: value.Field(j).Interface()})
 		}
-		if err := e.Stream.SetRow(fmt.Sprintf("%v%v", tbCfg.StartColumnKey, i+startRows), row); err != nil {
+		if err := e.stream.SetRow(fmt.Sprintf("%v%v", e.tbCfg.StartColumnKey, i+startRows+e.tbCfg.NumRows), row); err != nil {
 			return err
 		}
 	}
+	e.tbCfg.NumRows += len(objs)
+	e.tbCfg.ResetTableConfig()
 	return nil
 }
 
-func (e *excelib) setFooter(tbCfg *config.TableConfig, values reflect.Value) error {
-	lastRowIndex := tbCfg.EndRowIndex + 1
-	sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
+func (e *excelib) setFooter(values reflect.Value) error {
+	lastRowIndex := e.tbCfg.EndRowIndex + 1
+	sheetName := e.file.GetSheetName(e.file.GetActiveSheetIndex())
 
 	skipFields := 0
-	if e.cfg.HasIndex {
+	if e.exportCfg.HasIndex {
 		skipFields--
 	}
-	counter := values.Index(0).NumField()
+	counter := values.NumField()
 	formulaType := excelize.STCellFormulaTypeDataTable
-	for i := 0; i < values.Index(0).NumField(); i++ {
-		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
+	for i := 0; i < values.NumField(); i++ {
+		fieldName := values.Type().Field(i).Tag.Get("field")
 		if fieldName == "-" {
 			skipFields++
 			counter--
 			continue
 		}
 		cell := fmt.Sprintf("%v%v", string(config.EXCEL_COLUMN[i-skipFields]), lastRowIndex)
-		switch strings.ToLower(values.Index(0).Type().Field(i).Tag.Get("footer")) {
+		switch strings.ToLower(values.Type().Field(i).Tag.Get("footer")) {
 		case "sum":
-			if err := e.File.SetCellFormula(sheetName, cell, fmt.Sprintf("Sum(%v[%v])", e.cfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
+			if err := e.file.SetCellFormula(sheetName, cell, fmt.Sprintf("Sum(%v[%v])", e.exportCfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
 				return err
 			}
 		case "max":
-			if err := e.File.SetCellFormula(sheetName, cell, fmt.Sprintf("Max(%v[%v])", e.cfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
+			if err := e.file.SetCellFormula(sheetName, cell, fmt.Sprintf("Max(%v[%v])", e.exportCfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
 				return err
 			}
 		case "min":
-			if err := e.File.SetCellFormula(sheetName, cell, fmt.Sprintf("Min(%v[%v])", e.cfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
+			if err := e.file.SetCellFormula(sheetName, cell, fmt.Sprintf("Min(%v[%v])", e.exportCfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
 				return err
 			}
 		case "average":
-			if err := e.File.SetCellFormula(sheetName, cell, fmt.Sprintf("Average(%v[%v])", e.cfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
+			if err := e.file.SetCellFormula(sheetName, cell, fmt.Sprintf("Average(%v[%v])", e.exportCfg.TableName, fieldName), excelize.FormulaOpts{Type: &formulaType}); err != nil {
 				return err
 			}
 		default:
@@ -254,101 +280,105 @@ func (e *excelib) setFooter(tbCfg *config.TableConfig, values reflect.Value) err
 		}
 	}
 
-	if e.cfg.HasIndex && counter > 0 {
-		if err := e.File.SetCellValue(sheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, lastRowIndex), "Total"); err != nil {
+	if e.exportCfg.HasIndex && counter > 0 {
+		if err := e.file.SetCellValue(sheetName, fmt.Sprintf("%v%v", e.tbCfg.StartColumnKey, lastRowIndex), "Total"); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (e *excelib) setStreamFooter(tbCfg *config.TableConfig, values reflect.Value) error {
+func (e *excelib) setStreamFooter(values reflect.Value) {
 	footers := []interface{}{}
-	boldCenter := config.BoldCenter(e.File)
+	boldCenter := config.BoldCenter(e.file)
 
-	counter := values.Index(0).NumField()
-	for i := 0; i < values.Index(0).NumField(); i++ {
-		fieldName := values.Index(0).Type().Field(i).Tag.Get("field")
+	counter := values.NumField()
+	for i := 0; i < values.NumField(); i++ {
+		fieldName := values.Type().Field(i).Tag.Get("field")
 		if fieldName == "-" {
 			counter--
 			continue
 		}
-		switch strings.ToLower(values.Index(0).Type().Field(i).Tag.Get("footer")) {
+		switch strings.ToLower(values.Type().Field(i).Tag.Get("footer")) {
 		case "sum":
-			footers = append(footers, excelize.Cell{Formula: fmt.Sprintf("Sum(%v[%v])", e.cfg.TableName, fieldName), StyleID: boldCenter})
+			footers = append(footers, excelize.Cell{Formula: fmt.Sprintf("Sum(%v[%v])", e.exportCfg.TableName, fieldName), StyleID: boldCenter})
 		case "max":
-			footers = append(footers, excelize.Cell{Formula: fmt.Sprintf("Max(%v[%v])", e.cfg.TableName, fieldName), StyleID: boldCenter})
+			footers = append(footers, excelize.Cell{Formula: fmt.Sprintf("Max(%v[%v])", e.exportCfg.TableName, fieldName), StyleID: boldCenter})
 		case "min":
-			footers = append(footers, excelize.Cell{Formula: fmt.Sprintf("Min(%v[%v])", e.cfg.TableName, fieldName), StyleID: boldCenter})
+			footers = append(footers, excelize.Cell{Formula: fmt.Sprintf("Min(%v[%v])", e.exportCfg.TableName, fieldName), StyleID: boldCenter})
 		case "average":
-			footers = append(footers, excelize.Cell{Formula: fmt.Sprintf("Average(%v[%v])", e.cfg.TableName, fieldName), StyleID: boldCenter})
+			footers = append(footers, excelize.Cell{Formula: fmt.Sprintf("Average(%v[%v])", e.exportCfg.TableName, fieldName), StyleID: boldCenter})
 		default:
 			counter--
 			footers = append(footers, nil)
 		}
 	}
-	if e.cfg.HasIndex && counter > 0 {
+	if e.exportCfg.HasIndex && counter > 0 {
 		footers = append([]interface{}{excelize.Cell{Value: "Total", StyleID: boldCenter}}, footers...)
 	}
-	if err := e.Stream.SetRow(fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.EndRowIndex+1), footers); err != nil {
+	e.footers = footers
+}
+
+func (e *excelib) writeStreamFooter() error {
+	if err := e.stream.SetRow(fmt.Sprintf("%v%v", e.tbCfg.StartColumnKey, e.tbCfg.EndRowIndex+1), e.footers); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *excelib) setStyle(tbCfg *config.TableConfig) error {
-	center := config.Center(e.File)
-	boldCenter := config.BoldCenter(e.File)
-	sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
-	if err := e.File.SetCellStyle(sheetName, "A1", "A1", boldCenter); err != nil {
+func (e *excelib) setStyle() error {
+	center := config.Center(e.file)
+	boldCenter := config.BoldCenter(e.file)
+	sheetName := e.file.GetSheetName(e.file.GetActiveSheetIndex())
+	if err := e.file.SetCellStyle(sheetName, "A1", "A1", boldCenter); err != nil {
 		return err
 	}
-	if err := e.File.SetCellStyle(sheetName, tbCfg.FirstCell, tbCfg.LastCellCol, boldCenter); err != nil {
+	if err := e.file.SetCellStyle(sheetName, e.tbCfg.FirstCell, e.tbCfg.LastCellCol, boldCenter); err != nil {
 		return err
 	}
-	if e.cfg.HasIndex {
-		if err := e.File.SetCellStyle(sheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.StartRowIndex+1), fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.EndRowIndex+1), center); err != nil {
+	if e.exportCfg.HasIndex {
+		if err := e.file.SetCellStyle(sheetName, fmt.Sprintf("%v%v", e.tbCfg.StartColumnKey, e.tbCfg.StartRowIndex+1), fmt.Sprintf("%v%v", e.tbCfg.StartColumnKey, e.tbCfg.EndRowIndex+1), center); err != nil {
 			return err
 		}
 	}
-	if e.cfg.HasDescription {
-		if err := e.File.SetCellStyle(sheetName, fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.StartRowIndex+1), tbCfg.LastCellCol, boldCenter); err != nil {
+	if e.exportCfg.HasDescription {
+		if err := e.file.SetCellStyle(sheetName, fmt.Sprintf("%v%v", e.tbCfg.StartColumnKey, e.tbCfg.StartRowIndex+1), e.tbCfg.LastCellCol, boldCenter); err != nil {
 			return err
 		}
 	}
-	if e.cfg.HasFooter {
-		lastCell := fmt.Sprintf("%v%v", tbCfg.EndColumnKey, tbCfg.EndRowIndex+1)
-		lastCellRow := fmt.Sprintf("%v%v", tbCfg.StartColumnKey, tbCfg.EndRowIndex+1)
-		if err := e.File.SetCellStyle(sheetName, lastCellRow, lastCell, boldCenter); err != nil {
+	if e.exportCfg.HasFooter {
+		lastCell := fmt.Sprintf("%v%v", e.tbCfg.EndColumnKey, e.tbCfg.EndRowIndex+1)
+		lastCellRow := fmt.Sprintf("%v%v", e.tbCfg.StartColumnKey, e.tbCfg.EndRowIndex+1)
+		if err := e.file.SetCellStyle(sheetName, lastCellRow, lastCell, boldCenter); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (e *excelib) setTable(tbCfg *config.TableConfig) error {
-	sheetName := e.File.GetSheetName(e.File.GetActiveSheetIndex())
-	refRange := fmt.Sprintf("%v:%v", tbCfg.FirstCell, tbCfg.LastCell)
-	if err := e.File.AddTable(sheetName, &excelize.Table{
+func (e *excelib) setTable() error {
+	sheetName := e.file.GetSheetName(e.file.GetActiveSheetIndex())
+	refRange := fmt.Sprintf("%v:%v", e.tbCfg.FirstCell, e.tbCfg.LastCell)
+	if err := e.file.AddTable(sheetName, &excelize.Table{
 		Range:           refRange,
-		Name:            e.cfg.TableName,
-		StyleName:       e.cfg.TableStyle,
-		ShowFirstColumn: e.cfg.ShowFirstColumn,
-		ShowLastColumn:  e.cfg.ShowLastColumn,
+		Name:            e.exportCfg.TableName,
+		StyleName:       e.exportCfg.TableStyle,
+		ShowFirstColumn: e.exportCfg.ShowFirstColumn,
+		ShowLastColumn:  e.exportCfg.ShowLastColumn,
 	}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *excelib) setStreamTable(tbCfg *config.TableConfig) error {
-	refRange := fmt.Sprintf("%v:%v", tbCfg.FirstCell, tbCfg.LastCell)
-	if err := e.Stream.AddTable(&excelize.Table{
+func (e *excelib) setStreamTable() error {
+	refRange := fmt.Sprintf("%v:%v", e.tbCfg.FirstCell, e.tbCfg.LastCell)
+	if err := e.stream.AddTable(&excelize.Table{
 		Range:           refRange,
-		Name:            e.cfg.TableName,
-		StyleName:       e.cfg.TableStyle,
-		ShowFirstColumn: e.cfg.ShowFirstColumn,
-		ShowLastColumn:  e.cfg.ShowLastColumn,
+		Name:            e.exportCfg.TableName,
+		StyleName:       e.exportCfg.TableStyle,
+		ShowFirstColumn: e.exportCfg.ShowFirstColumn,
+		ShowLastColumn:  e.exportCfg.ShowLastColumn,
 	}); err != nil {
 		return err
 	}

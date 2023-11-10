@@ -17,6 +17,8 @@ github.com/stretchr/objx v0.4.0/go.mod h1:YvHI0jy2hoMjB+UWwv71VJQ9isScKT/TqJzVSS
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PKk=
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
+github.com/vukyn/go-kuery v0.0.0-20231101110710-24b16beabe21 h1:b+d4G9DYmc6/h/NFGQK5I5JTFYTvQPNNSnQZngrgqeY=
+github.com/vukyn/go-kuery v0.0.0-20231101110710-24b16beabe21/go.mod h1:G4pHOQoOpU/sYahYOm8GPhTNhQroaYbahO0YtlRLyIw=
 github.com/xuri/efp v0.0.0-20220603152613-6918739fd470 h1:6932x8ltq1w4utjmfMPVj09jdMlkY0aiA6+Skbtl3/c=
 github.com/xuri/efp v0.0.0-20220603152613-6918739fd470/go.mod h1:ybY/Jr0T0GTCnYjKqmdwxyxn2BQf2RcQIIvex5QldPI=
 github.com/xuri/excelize/v2 v2.7.1 h1:gm8q0UCAyaTt3MEF5wWMjVdmthm2EHAWesGSKS9tdVI=
